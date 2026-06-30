@@ -58,6 +58,7 @@ public class JavaJAXRSSpecServerCodegen extends AbstractJavaJAXRSServerCodegen {
     public static final String OPEN_API_SPEC_FILE_LOCATION = "openApiSpecFileLocation";
     public static final String GENERATE_JSON_CREATOR = "generateJsonCreator";
     public static final String USE_JAKARTA_SECURITY_ANNOTATIONS = "useJakartaSecurityAnnotations";
+    public static final String USE_SEALED = "useSealed";
 
     public static final String QUARKUS_LIBRARY = "quarkus";
     public static final String THORNTAIL_LIBRARY = "thorntail";
@@ -74,6 +75,9 @@ public class JavaJAXRSSpecServerCodegen extends AbstractJavaJAXRSServerCodegen {
     private boolean useMicroProfileOpenAPIAnnotations = false;
     private boolean useMutiny = false;
     private boolean useJakartaSecurityAnnotations = false;
+
+    @Setter
+    protected boolean useSealed = false;
 
     private final JakartaSecurityAnnotationProcessor jakartaSecurityAnnotationProcessor = new JakartaSecurityAnnotationProcessor();
 
@@ -157,6 +161,7 @@ public class JavaJAXRSSpecServerCodegen extends AbstractJavaJAXRSServerCodegen {
         cliOptions.add(CliOption.newBoolean(USE_MUTINY, "Whether to use Smallrye Mutiny instead of CompletionStage for asynchronous computation. Only valid when library is set to quarkus.", useMutiny));
         cliOptions.add(CliOption.newBoolean(USE_JAKARTA_SECURITY_ANNOTATIONS, "Whether to generate Jakarta security annotations (@RolesAllowed, @PermitAll). Requires useJakartaEe=true. Currently only supported when library is set to quarkus.", useJakartaSecurityAnnotations));
         cliOptions.add(CliOption.newBoolean(GENERATE_JSON_CREATOR, "Whether to generate @JsonCreator constructor for required properties.", generateJsonCreator));
+        cliOptions.add(CliOption.newBoolean(USE_SEALED, "Whether to generate sealed model interfaces and classes.", useSealed));
     }
 
     @Override
@@ -199,6 +204,7 @@ public class JavaJAXRSSpecServerCodegen extends AbstractJavaJAXRSServerCodegen {
         }
 
         convertPropertyToBooleanAndWriteBack(GENERATE_JSON_CREATOR, this::setGenerateJsonCreator);
+        convertPropertyToBooleanAndWriteBack(USE_SEALED, this::setUseSealed);
 
         if (additionalProperties.containsKey(OPEN_API_SPEC_FILE_LOCATION)) {
             openApiSpecFileLocation = additionalProperties.get(OPEN_API_SPEC_FILE_LOCATION).toString();
