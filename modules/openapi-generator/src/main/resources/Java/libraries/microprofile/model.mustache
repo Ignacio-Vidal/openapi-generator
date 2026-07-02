@@ -62,7 +62,12 @@ import {{rootJavaEEPackage}}.validation.Valid;
 {{>oneof_interface}}
 {{/vendorExtensions.x-is-one-of-interface}}
 {{^vendorExtensions.x-is-one-of-interface}}
+{{#vendorExtensions.x-java-record}}
+{{>record}}
+{{/vendorExtensions.x-java-record}}
+{{^vendorExtensions.x-java-record}}
 {{>pojo}}
+{{/vendorExtensions.x-java-record}}
 {{/vendorExtensions.x-is-one-of-interface}}
 
 {{/isEnum}}
