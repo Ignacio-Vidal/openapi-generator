@@ -442,6 +442,10 @@ public class JavaClientCodegen extends AbstractJavaCodegen
             writePropertyBack(JAVA_17, true);
         }
 
+        if (libMicroprofile && useSealedOneOfInterfaces) {
+            writePropertyBack(JAVA_17, true);
+        }
+
         if (!useRxJava && !useRxJava2 && !useRxJava3) {
             additionalProperties.put(DO_NOT_USE_RX, true);
         }

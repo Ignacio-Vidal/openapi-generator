@@ -1371,6 +1371,60 @@ public class JavaJAXRSSpecServerCodegenTest extends JavaJaxrsBaseTest {
         }
     }
 
+    /**
+     * With {@code useOneOfInterfaces=true} a oneOf schema is generated as a Java interface, and the
+     * concrete subtypes implement it. With {@code useSealed=true} the interface is {@code sealed} and
+     * {@code permits} its subtypes, which become {@code final} and {@code implements} the interface.
+     * The discriminator property is declared only on a shared non-discriminator base (acyclic pattern),
+     * so the interface getter type must resolve to the enum model (PetType) from the mapped children.
+     */
+    @Test
+    public void testOneOfSealedInterfaceGeneration() throws Exception {
+        File output = Files.createTempDirectory("test").toFile().getCanonicalFile();
+        output.deleteOnExit();
+
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("useOneOfInterfaces", "true");
+        properties.put("useSealed", "true");
+
+        final CodegenConfigurator configurator = new CodegenConfigurator()
+                .setGeneratorName("jaxrs-spec")
+                .setAdditionalProperties(properties)
+                .setInputSpec("src/test/resources/3_0/jaxrs-spec/oneof_interface.yaml")
+                .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+        DefaultGenerator generator = new DefaultGenerator();
+        generator.opts(configurator.toClientOptInput()).generate();
+
+        // assertFileContains is used rather than JavaFileAssert because the latter parses the source
+        // with a JavaParser language level that predates sealed types and would reject the `sealed`
+        // and `permits` keywords.
+        String modelDir = output.getAbsolutePath().replace("\\", "/") + "/src/gen/java/org/openapitools/model/";
+
+        // The oneOf schema becomes a sealed interface that permits its subtypes, and declares the
+        // discriminator getter with the resolved enum type rather than String.
+        assertFileContains(Paths.get(modelDir + "PetRequest.java"),
+                "public sealed interface PetRequest",
+                "permits CatRequest, DogRequest",
+                "PetType getPetType();");
+        // an interface is not a class and must not extend a parent
+        assertFileNotContains(Paths.get(modelDir + "PetRequest.java"), "class PetRequest");
+
+        // The concrete subtypes are final and implement (not extend) the interface, with a matching
+        // getter return type, so there is no cyclical extends/implements and no return-type clash.
+        assertFileContains(Paths.get(modelDir + "CatRequest.java"),
+                "public final class CatRequest",
+                "implements PetRequest",
+                "public PetType getPetType()");
+        assertFileNotContains(Paths.get(modelDir + "CatRequest.java"), "extends PetRequest");
+
+        assertFileContains(Paths.get(modelDir + "DogRequest.java"),
+                "public final class DogRequest",
+                "implements PetRequest",
+                "public PetType getPetType()");
+        assertFileNotContains(Paths.get(modelDir + "DogRequest.java"), "extends PetRequest");
+    }
+
     @Test
     public void testGenerateJsonNullableListFieldsHelperMethodReferences_issue23251() throws Exception {
         Map<String, Object> properties = new HashMap<>();
