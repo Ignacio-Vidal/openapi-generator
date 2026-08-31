@@ -139,10 +139,17 @@ public class DiscriminatorUtils {
         DiscriminatorData foundDisc = new DiscriminatorData(refSchema.getDiscriminator(), null);
         if (foundDisc.getDiscriminator() != null) {
             String discriminatorPropertyName = foundDisc.getDiscriminator().getPropertyName();
-            return new DiscriminatorData(
-                    foundDisc.getDiscriminator(),
-                    DiscriminatorUtils.getDiscriminatorSchema(refSchema, discriminatorPropertyName)
-            );
+            Schema discriminatorSchema = DiscriminatorUtils.getDiscriminatorSchema(refSchema, discriminatorPropertyName);
+            if (discriminatorSchema == null) {
+                // The schema declares a discriminator but does not itself define the discriminator
+                // property (e.g. a oneOf/anyOf interface whose property is inherited by each
+                // alternative from a shared base). Descend into the alternatives to discover the
+                // property type so the generated getter matches the concrete classes rather than
+                // falling back to String. Ref: issue #22636.
+                discriminatorSchema = findDiscriminatorSchemaInAlternatives(
+                        openAPI, refSchema, discriminatorPropertyName, new ArrayList<>());
+            }
+            return new DiscriminatorData(foundDisc.getDiscriminator(), discriminatorSchema);
         }
 
         if (legacyDiscriminatorBehavior) {
@@ -233,6 +240,54 @@ public class DiscriminatorUtils {
             discSchema = (Schema) discSchema.getAllOf().get(0);
         }
         return discSchema;
+    }
+
+    /**
+     * Recursively look for the schema of the discriminator property within the alternatives (oneOf,
+     * anyOf, allOf) of a composed schema. This is used when a schema declares a discriminator but
+     * does not itself define the discriminator property, so its type must be discovered from the
+     * schemas that do (typically a shared base inherited via allOf by each alternative).
+     *
+     * @param openAPI           the openAPI specification
+     * @param schema            the schema whose alternatives should be searched
+     * @param discriminatorName the name of the discriminator property
+     * @param visitedSchemas    the schemas already visited, to guard against recursive definitions
+     * @return the discriminator property schema if found, otherwise null
+     */
+    private static Schema findDiscriminatorSchemaInAlternatives(OpenAPI openAPI,
+                                                                Schema schema,
+                                                                String discriminatorName,
+                                                                List<Schema> visitedSchemas) {
+        Schema refSchema = ModelUtils.getReferencedSchema(openAPI, schema);
+        for (Schema s : visitedSchemas) {
+            if (s == refSchema) {
+                return null;
+            }
+        }
+        visitedSchemas.add(refSchema);
+
+        Schema discSchema = getDiscriminatorSchema(refSchema, discriminatorName);
+        if (discSchema != null) {
+            return discSchema;
+        }
+
+        List<Schema> alternatives = new ArrayList<>();
+        if (refSchema.getOneOf() != null) {
+            alternatives.addAll(refSchema.getOneOf());
+        }
+        if (refSchema.getAnyOf() != null) {
+            alternatives.addAll(refSchema.getAnyOf());
+        }
+        if (refSchema.getAllOf() != null) {
+            alternatives.addAll(refSchema.getAllOf());
+        }
+        for (Schema alternative : alternatives) {
+            Schema found = findDiscriminatorSchemaInAlternatives(openAPI, alternative, discriminatorName, visitedSchemas);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /**

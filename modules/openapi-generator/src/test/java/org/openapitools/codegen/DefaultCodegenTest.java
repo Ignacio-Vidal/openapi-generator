@@ -1293,6 +1293,26 @@ public class DefaultCodegenTest {
     }
 
     @Test
+    public void testOneOfDiscriminatorOnInterfacePropertyInAlternatives() {
+        // The oneOf interface declares the discriminator on itself but does not define the
+        // discriminator property locally; each alternative inherits it (an enum ref) from a shared
+        // base via allOf. The interface getter must resolve to the enum type, not String.
+        // Ref: issue #22636.
+        final OpenAPI openAPI = TestUtils.parseFlattenSpec("src/test/resources/3_0/oneOfDiscriminator.yaml");
+        new OpenAPINormalizer(openAPI, Map.of()).normalize();
+        DefaultCodegen codegen = new DefaultCodegen();
+        codegen.setUseOneOfInterfaces(true);
+        codegen.setLegacyDiscriminatorBehavior(false);
+        codegen.setOpenAPI(openAPI);
+
+        Schema inner = openAPI.getComponents().getSchemas().get("PetRequestV3");
+        CodegenModel innerModel = codegen.fromModel("PetRequestV3", inner);
+        assertTrue(innerModel.getHasDiscriminatorWithNonEmptyMapping());
+        assertTrue(innerModel.discriminator.getIsEnum());
+        assertEquals("PetType", innerModel.discriminator.getPropertyType());
+    }
+
+    @Test
     public void testParentName() {
         final OpenAPI openAPI = TestUtils.parseFlattenSpec("src/test/resources/3_0/allOf.yaml");
         DefaultCodegen codegen = new DefaultCodegen();
