@@ -385,3 +385,45 @@ components:
       type: object
       allOf:
         - $ref: '#/components/schemas/Vehicle'
+      # oneOf interface that declares the discriminator on the interface schema ITSELF (not on the
+      # alternatives) and does not define the discriminator property locally. The property type is
+      # an enum ref inherited by each alternative from a shared base (PetV3Base) via allOf. The
+      # interface getter must use the enum type (PetType), not String. Ref: issue #22636.
+    PetRequestV3:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/CatRequestV3'
+        - $ref: '#/components/schemas/DogRequestV3'
+      discriminator:
+        propertyName: petType
+        mapping:
+          CAT: '#/components/schemas/CatRequestV3'
+          DOG: '#/components/schemas/DogRequestV3'
+    PetType:
+      type: string
+      enum:
+        - CAT
+        - DOG
+    PetV3Base:
+      type: object
+      required:
+        - petType
+      properties:
+        petType:
+          $ref: '#/components/schemas/PetType'
+    CatRequestV3:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/PetV3Base'
+        - type: object
+          properties:
+            indoor:
+              type: boolean
+    DogRequestV3:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/PetV3Base'
+        - type: object
+          properties:
+            trained:
+              type: boolean
